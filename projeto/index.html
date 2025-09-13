@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rastreador de Pets</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    #mapa {
+      height: 400px;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body class="bg-dark text-light">
+
+  <div class="container py-5">
+    <h1 class="text-center mb-4">🐾 Rastreador de Pets</h1>
+
+    <div class="card bg-secondary text-light mb-4 shadow">
+      <div class="card-body">
+        <h4 class="card-title">Cadastro do Pet</h4>
+        <form id="formCadastro">
+          <div class="mb-3">
+            <label class="form-label">Nome do Pet</label>
+            <input type="text" class="form-control" id="nomePet" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nome do Dono(a)</label>
+            <input type="text" class="form-control" id="nomeDono" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Telefone</label>
+            <input type="text" class="form-control" id="telefone" required>
+          </div>
+          <p class="small">👉 Clique no mapa para marcar a localização da sua casa.</p>
+          <button type="submit" class="btn btn-success">Salvar Cadastro</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="cardPet" class="card bg-secondary text-light mb-4 shadow d-none">
+      <div class="card-body">
+        <h4 class="card-title">Pet: <span id="petNome"></span></h4>
+        <p class="card-text">Dono: <span id="donoNome"></span></p>
+        <p class="card-text">Telefone: <span id="donoTel"></span></p>
+        <p class="card-text">Status: <span id="status" class="fw-bold text-success">Em casa</span></p>
+        <p class="card-text">Localização: <span id="localizacao">Não definida</span></p>
+        <button class="btn btn-warning" onclick="atualizarLocalizacao()">Atualizar Localização</button>
+      </div>
+    </div>
+
+    <div id="mapa"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    let map;
+    let marker;
+    let casaMarker = null;
+    let casaCoords = null;
+    let movimentoInterval;
+
+    const alertaMovimento = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+    const alertaCasa = new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+
+    window.onload = function() {
+
+      map = L.map('mapa').setView([-3.7172, -38.5437], 12);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(map);
+
+      map.on("click", function(e) {
+        if (casaMarker) {
+          map.removeLayer(casaMarker);
+        }
+        casaCoords = e.latlng;
+        casaMarker = L.marker(casaCoords, {draggable: true}).addTo(map)
+          .bindPopup("🏠 Casa marcada aqui")
+          .openPopup();
+      });
+    };
+    document.getElementById("formCadastro").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const nomePet = document.getElementById("nomePet").value;
+      const nomeDono = document.getElementById("nomeDono").value;
+      const telefone = document.getElementById("telefone").value;
+
+      if (!casaCoords) {
+        alert("Por favor, clique no mapa para marcar sua casa.");
+        return;
+      }
+
+      document.getElementById("petNome").textContent = nomePet;
+      document.getElementById("donoNome").textContent = nomeDono;
+      document.getElementById("donoTel").textContent = telefone;
+      document.getElementById("localizacao").textContent = `${casaCoords.lat.toFixed(4)}, ${casaCoords.lng.toFixed(4)} (Casa)`;
+      document.getElementById("cardPet").classList.remove("d-none");
+      if (marker) {
+        map.removeLayer(marker);
+      }
+      marker = L.marker(casaCoords).addTo(map)
+        .bindPopup(`🐶 ${nomePet} está em casa`)
+        .openPopup();
+
+      map.setView(casaCoords, 14);
+    });
+
+    function atualizarLocalizacao() {
+      if (!casaCoords) {
+        alert("Cadastre o pet e marque a casa primeiro!");
+        return;
+      }
+
+      const status = document.getElementById("status");
+      const localizacao = document.getElementById("localizacao");
+      const novoLocal = {
+        lat: casaCoords.lat + 0.001,
+        lng: casaCoords.lng,
+        nome: "Fora de casa"
+      };
+
+      status.textContent = "Em movimento";
+      status.classList.remove("text-success");
+      status.classList.add("text-warning");
+
+      localizacao.textContent = `${novoLocal.lat.toFixed(4)}, ${novoLocal.lng.toFixed(4)} (${novoLocal.nome})`;
+
+      alertaMovimento.play();
+
+      marker.setLatLng([novoLocal.lat, novoLocal.lng])
+        .bindPopup(`🐾 ${document.getElementById("petNome").textContent} está em movimento`)
+        .openPopup();
+
+      map.setView([novoLocal.lat, novoLocal.lng], 15);
+
+      setTimeout(() => {
+        status.textContent = "Em casa";
+        status.classList.remove("text-warning");
+        status.classList.add("text-success");
+
+        clearInterval(movimentoInterval);
+        alertaCasa.play();
+
+        localizacao.textContent = `${casaCoords.lat.toFixed(4)}, ${casaCoords.lng.toFixed(4)} (Casa)`;
+
+        marker.setLatLng(casaCoords)
+          .bindPopup(`🐶 ${document.getElementById("petNome").textContent} voltou para casa`)
+          .openPopup();
+
+        map.setView(casaCoords, 15);
+      }, 5000);
+    }
+  </script>
+</body>
+</html>
