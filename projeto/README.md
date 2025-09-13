@@ -18,16 +18,10 @@ A aplicação permite que o usuário cadastre informações sobre o pet, como no
 
 - HTML
 - CSS
+- Bootstrap
 - JavaScript
 - Leaflet.js
-- Bootstrap
 
 ---
 ## Responsividade
 A aplicação é responsiva, garantindo que funcione bem em dispositivos móveis, tablets e desktops.
-
-## Deploy
-
-A aplicação foi hospedada no **Vercel** e pode ser acessada através do seguinte link:
-
-[Link do Projeto]()
